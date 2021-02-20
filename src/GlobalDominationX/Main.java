@@ -1,6 +1,7 @@
 package GlobalDominationX;
 
 import GlobalDominationX.Logic.Generator;
+import GlobalDominationX.Logic.ServerData;
 import arc.Core;
 import arc.Events;
 import arc.files.Fi;
@@ -9,8 +10,11 @@ import arc.util.CommandHandler;
 import arc.util.Interval;
 import arc.util.Log;
 import arc.util.Timer;
+import arc.util.io.ReusableByteInStream;
 import arc.util.serialization.Json;
+import arc.util.serialization.Jval;
 import arc.util.serialization.UBJsonReader;
+import arc.util.serialization.UBJsonWriter;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -34,20 +38,23 @@ public class Main extends Plugin {
     public static int pingInterval = 1, pingTime = 120,
             consoleInterval = 2, consoleTime = 240;
     public static Seq<BufferedReader> consoles = new Seq<>();
-    
+    public static Json j = new Json();
+    public static Fi f = Fi.get("GlobalX.bin");
+
     @Override
     public void init() {
-        Json json = new Json();
-        
-        class Avoid {
-            int value = 0;
+
+
+        j.setUsePrototypes(false);
+        j.setWriter(new UBJsonWriter(f.write()));
+        for (int i = 0; i < 10; i++) {
+            j.writeValue(new ServerData(), ServerData.class, null);
         }
-        
-        Fi data = Fi.get("globalX.bin");
-        json.toUBJson(new Avoid(), null, data.write());
+
         UBJsonReader reader = new UBJsonReader();
-        Avoid a = json.readValue(Avoid.class, null, reader.parse(data));
-        
+        ServerData a = j.readValue(ServerData.class, reader.parse(f.read()));
+        Log.info("{}", a);
+
         Events.on(EventType.ServerLoadEvent.class, event -> {
             initRules();
             ServerLoad();
@@ -63,9 +70,9 @@ public class Main extends Plugin {
                     System.exit(0);
                 });
             }
-            
+
             if (interval.get(consoleInterval, consoleTime)) {
-                
+
             }
         });
 
@@ -87,26 +94,37 @@ public class Main extends Plugin {
         handler.register("run", "create game", (args) -> {
             runServer();
         });
+        
+        handler.register("write", "idk", args -> {
+            j.setUsePrototypes(false);
+            j.setWriter(new UBJsonWriter(f.write()));
+            j.writeValue(new ServerData(), ServerData.class, null);
+        });
+        
+        handler.register("get", "return table with servers", args -> {
+            UBJsonReader reader = new UBJsonReader();
+            ServerData a = j.readValue(ServerData.class, reader.parse(f.read()));
+            Log.info("{}", reader.parse(f));
+        });
     }
 
     public static void ServerLoad() {
-        Core.settings.put("server_port_ip", Administration.Config.port.num());
-        int ip = Core.settings.getInt("current_server");
         // Load World
         Log.info("Global Dominations Starting...");
         Vars.logic.reset();
         Call.worldDataBegin();
         Vars.world.loadGenerator(50, 50, new Generator());
         Vars.state.rules = rules.copy();
-        
+
         try {
-            int port = Administration.Config.port.num() + Core.settings.getInt("current_server");
+            int port = Administration.Config.port.num();
             Vars.net.host(port);
             Log.info("Server Hosted On Port: " + port);
         } catch (IOException ex) {
             Log.err(ex);
             System.exit(0);
         }
+
         Vars.logic.play();
         Log.info("Process end");
     }
