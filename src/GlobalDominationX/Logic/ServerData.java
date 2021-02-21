@@ -1,7 +1,8 @@
 package GlobalDominationX.Logic;
 
 public class ServerData {
-    String value;
+    public boolean seted = false;
+    public int id = 0;
     
     public ServerData() {
     }

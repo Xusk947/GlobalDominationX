@@ -15,6 +15,7 @@ dependencies{
     def version = "v120"
     compileOnly "com.github.Anuken.Arc:arc-core:$version"
     compileOnly "com.github.Anuken.Mindustry:core:$version"
+    compileOnly "org.mongodb:mongodb-driver:3.3.0"
 }
 
 allprojects{

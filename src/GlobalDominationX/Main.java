@@ -10,11 +10,7 @@ import arc.util.CommandHandler;
 import arc.util.Interval;
 import arc.util.Log;
 import arc.util.Timer;
-import arc.util.io.ReusableByteInStream;
-import arc.util.serialization.Json;
 import arc.util.serialization.Jval;
-import arc.util.serialization.UBJsonReader;
-import arc.util.serialization.UBJsonWriter;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -24,6 +20,8 @@ import mindustry.Vars;
 import mindustry.game.EventType;
 import mindustry.game.Rules;
 import mindustry.gen.Call;
+import mindustry.gen.Groups;
+import mindustry.gen.Player;
 import mindustry.mod.Plugin;
 import mindustry.net.Administration;
 
@@ -38,22 +36,41 @@ public class Main extends Plugin {
     public static int pingInterval = 1, pingTime = 120,
             consoleInterval = 2, consoleTime = 240;
     public static Seq<BufferedReader> consoles = new Seq<>();
-    public static Json j = new Json();
-    public static Fi f = Fi.get("GlobalX.bin");
+    public static int id;
+    public static int nowServers = 0, maxServers = 2;
+    public static Fi file = Fi.get("GlobalX.bin");
+    public static Fi config = Fi.get("config.bin");
+    public static String serverIp = "192.168.0.2";
 
     @Override
     public void init() {
-
-
-        j.setUsePrototypes(false);
-        j.setWriter(new UBJsonWriter(f.write()));
-        for (int i = 0; i < 10; i++) {
-            j.writeValue(new ServerData(), ServerData.class, null);
+        if (!config.exists()) {
+            config.write();
+            Jval jval = Jval.read(config.readString());
+            jval.add("ip", serverIp);
+            config.writeString(jval.toString());
+        } else {
+            Jval jval = Jval.read(config.readString());
+            serverIp = jval.get("ip").toString();
         }
 
-        UBJsonReader reader = new UBJsonReader();
-        ServerData a = j.readValue(ServerData.class, reader.parse(f.read()));
-        Log.info("{}", a);
+        if (Core.settings.getBool("setted")) {
+            id = getID();
+            writeID(id + 1);
+        } else {
+            file.write();
+            Jval jval = Jval.read(file.readString());
+            jval.add("id", "1");
+            file.writeString(jval.toString());
+            id = 0;
+
+            Core.settings.put("setted", true);
+            Core.settings.saveValues();
+        }
+
+        if (id == maxServers) {
+
+        }
 
         Events.on(EventType.ServerLoadEvent.class, event -> {
             initRules();
@@ -64,24 +81,49 @@ public class Main extends Plugin {
         Events.run(EventType.Trigger.update, () -> {
             if (interval.get(pingInterval, pingTime)) {
                 Vars.net.pingHost("localhost", Administration.Config.port.num(), (t) -> {
+                    Core.settings.put("setted", true);
+                    Core.settings.saveValues();
                 }, (t) -> {
-                    Core.settings.put("main_server", false);
-                    Core.settings.put("current_server", 123);
+                    Core.settings.put("setted", false);
+                    Core.settings.saveValues();
                     System.exit(0);
                 });
+
+                if (id == 0) {
+
+                }
             }
 
             if (interval.get(consoleInterval, consoleTime)) {
-
+                if (id == 0) {
+                    Log.info(consoles.size + " : " + maxServers);
+                    while (nowServers < maxServers) {
+                        runServer();
+                        nowServers++;
+                    }
+                }
             }
-        });
 
-        // IDK just must work lol
-        Events.on(EventType.DisposeEvent.class, event -> {
-            if (Core.settings.getBool("main_server")) {
-                Core.settings.put("main_server", false);
+            int height = Vars.world.height(), width = Vars.world.width();
+
+            for (Player player : Groups.player) {
+                if (id == 0) {
+                    if (player.tileY() > height - 2) {
+                        Call.connect(player.con, serverIp, Administration.Config.port.num() + id  + 1);
+                    }
+                } else if (id == maxServers) {
+                    if (player.tileY() < -2) {
+                        Call.connect(player.con, serverIp, Administration.Config.port.num() + id  - 1);
+                    }
+                } else {
+                    if (player.tileY() > height - 2) {
+                        Call.connect(player.con, serverIp, Administration.Config.port.num() + id + 1);
+                    }
+                    if (player.tileY() < -2) {
+                        Call.connect(player.con, serverIp, Administration.Config.port.num() + id  - 1);
+                    }
+                }
             }
-            Log.info("WHY");
         });
     }
 
@@ -91,21 +133,27 @@ public class Main extends Plugin {
 
     @Override
     public void registerServerCommands(CommandHandler handler) {
-        handler.register("run", "create game", (args) -> {
-            runServer();
+        handler.register("setip", "<ip>", "set ip to work", args -> {
+            if (args.length > 0) {
+                serverIp = args[0];
+                Log.info("server IP now: " + serverIp);
+                Jval j = Jval.read(config.readString());
+                j.add("ip", serverIp);
+                config.writeString(j.toString());
+            }
         });
+    }
+
+    public static int getID() {
+        Jval j = Jval.read(file.readString());
+        return Integer.valueOf(j.get("id").toString());
+    }
+
+    public static void writeID(int id) {
         
-        handler.register("write", "idk", args -> {
-            j.setUsePrototypes(false);
-            j.setWriter(new UBJsonWriter(f.write()));
-            j.writeValue(new ServerData(), ServerData.class, null);
-        });
-        
-        handler.register("get", "return table with servers", args -> {
-            UBJsonReader reader = new UBJsonReader();
-            ServerData a = j.readValue(ServerData.class, reader.parse(f.read()));
-            Log.info("{}", reader.parse(f));
-        });
+        Jval j = Jval.read(file.readString());
+        j.add("id", "2");
+        file.writeString(j.toString());
     }
 
     public static void ServerLoad() {
@@ -113,11 +161,22 @@ public class Main extends Plugin {
         Log.info("Global Dominations Starting...");
         Vars.logic.reset();
         Call.worldDataBegin();
-        Vars.world.loadGenerator(50, 50, new Generator());
+
+        Generator gen = new Generator();
+
+        if (id == 0) {
+            gen.side = Generator.Side.down;
+        } else if (id == maxServers) {
+            gen.side = Generator.Side.up;
+        } else {
+            gen.side = Generator.Side.centre;
+        }
+
+        Vars.world.loadGenerator(50, 500, gen);
         Vars.state.rules = rules.copy();
 
         try {
-            int port = Administration.Config.port.num();
+            int port = Administration.Config.port.num() + id;
             Vars.net.host(port);
             Log.info("Server Hosted On Port: " + port);
         } catch (IOException ex) {
