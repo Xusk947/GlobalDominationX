@@ -1,7 +1,8 @@
-package GlobalDominationX.Logic;
+package GlobalDominationX.Area;
 
 import arc.func.Cons;
 import mindustry.content.Blocks;
+import mindustry.game.Team;
 import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.Tiles;
@@ -17,5 +18,8 @@ public class Generator implements Cons<Tiles> {
                 tiles.set(x, y, new Tile(x, y, Blocks.stone, Blocks.air, wall));
             }
         }
+        
+        tiles.getn(10, tiles.height / 2).setBlock(Blocks.coreShard, Team.sharded);
+        tiles.get(tiles.width - 10, tiles.height / 2).setBlock(Blocks.coreShard, Team.blue);
     }
 }

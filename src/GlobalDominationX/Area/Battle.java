@@ -1,7 +1,6 @@
 package GlobalDominationX.Area;
 
 import GlobalDominationX.Farm.Logic;
-import GlobalDominationX.Logic.Generator;
 import GlobalDominationX.Logic.UnitCapacityGroup;
 import arc.struct.Seq;
 import arc.util.Interval;
@@ -50,6 +49,8 @@ public class Battle {
         
         blue = Logic.blue.copy();
         sharded = Logic.sharded.copy();
+        Logic.blue = new UnitCapacityGroup();
+        Logic.sharded = new UnitCapacityGroup();
         
         // Update Values
         Seq<Player> players = new Seq<>();
@@ -79,7 +80,7 @@ public class Battle {
     }
     
     public static void start() {
-        sharded.spawn(Team.sharded, 10 * Vars.tilesize, Vars.world.height() / 2 * Vars.tilesize);
-        blue.spawn(Team.blue, (Vars.world.width() - 10), Vars.world.height() / 2 * Vars.tilesize);
+        sharded.spawn(Team.sharded, 15 * Vars.tilesize, Vars.world.height() / 2 * Vars.tilesize);
+        blue.spawn(Team.blue, (Vars.world.width() - 15), Vars.world.height() / 2 * Vars.tilesize);
     }
 }
