@@ -19,11 +19,14 @@ public class UnitCapacityGroup{
     public void spawn(Team team, int x, int y) {
         units.keys().forEach(key -> {
             for (int i = 0; i < units.get(key); i++) {
-                Unit unit = key.create(team);
+                Unit unit = key.create(Team.crux);
                 unit.set(x, y);
                 unit.add();
+                unit.team(team);
             }
         });
+        // null all value when unit spawned
+        units.keys().forEach(key -> units.put(key, 0));
     }
     
     public void set(UnitType type, int count) {
